@@ -12,8 +12,8 @@ The time data includes:
 The F0 data includes:
 
 * F0 in Hertz
-* F0 z-score normalised re local PA F0 mean and standard deviation.
-* F0 z-score normalised re global (file-wide) F0 mean and standard deviation.
+* F0 z-score normalised re local PA F0 mean and standard deviation
+* F0 z-score normalised re global (file-wide) F0 mean and standard deviation (if requested)
 * PoLaR level values
 
 
@@ -51,7 +51,7 @@ The option to get the time and F0 Data appears under "Polar Data Extraction" hea
 
 1. **Max time delta between point and level (ms)**
 
-    This is the maximum time difference allowed between an annotation in the points tier and an associated annotation in the levels tier. It is a failsafe in case there is no appropriate matching level tier annotation. The user is warned if one cannot be found.
+    This is the maximum time difference allowed between an annotation in the points tier and an associated annotation in the levels tier. It is a failsafe in case there is no appropriate matching level tier annotation. A warning will appean in the Info window.
 
 2. **Add F0 z scores based on whole recording**
 
@@ -66,6 +66,6 @@ The option to get the time and F0 Data appears under "Polar Data Extraction" hea
     Offers the option to check the pitch contour and correct any pitch halving or doubling errors.
 
 ## Notes
-1. The pitch contour is interpolated to mitigate against undefined F0 values.
+1. The pitch contour is interpolated to mitigate against undefined F0 values. If there are (for any reason) still undefined time points, a warning appears in the Info window.
 2. A value of -1 in the F0_level column means no associated level value was found in the TextGrid.
 3. This there may be some idiosyncrasies in the script as it was designed to aid a fellow PhD student's research.
