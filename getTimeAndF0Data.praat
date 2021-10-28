@@ -1,6 +1,6 @@
 # Get Time and F0 Data from a Polar Annotated TextGrid and Sound Combo
 # ====================================================================
-# Version 0.0.1
+# Version 0.0.2
 #
 # Written for Praat 6.0.40
 #
@@ -88,11 +88,17 @@ procedure main
     endif
 
     # get mean and z-score for whole sound file
-    if whole_file_F0_z_scores
-        selectObject: cur_sound
-        temp_pitch = noprogress To Pitch (ac): 0.75/f0_min, f0_min,
-        ... max_candidates, "no", silence_threshold, voicing_threshold,
-        ... octave_cost, octave_jump_cost, vuv_cost, f0_max
+    if global_F0_z_scores
+        # Get pitch contour.
+        if check_pitch_contour
+            @checkPitch: cur_sound
+            pitch_temp = checkPitch.temp_pitch
+        else
+            selectObject: cur_sound
+            temp_pitch = noprogress To Pitch (ac): 0.75/f0_min, f0_min,
+            ... max_candidates, "no", silence_threshold, voicing_threshold,
+            ... octave_cost, octave_jump_cost, vuv_cost, f0_max
+        endif
         f0_mean_all = Get mean: sound_s_t, sound_e_t, "Hertz"
         f0_SD_all = Get standard deviation: sound_s_t, sound_e_t, "Hertz"
         Remove
@@ -230,13 +236,14 @@ procedure makePitchAccentTable
         # Get pitch contour.
         if check_pitch_contour
             @checkPitch: temp_sound
+            pitch_temp = checkPitch.temp_pitch
         else
             pitch_temp = noprogress To Pitch (ac): 0, f0_min,
             ... max_candidates, "no", silence_threshold, voicing_threshold,
             ... octave_cost, octave_jump_cost, vuv_cost, f0_max
-            pitch = Interpolate
-            removeObject: pitch_temp
         endif
+        pitch = Interpolate
+        removeObject: pitch_temp
         removeObject: temp_sound
 
         # Get F0 data
@@ -255,7 +262,7 @@ procedure makePitchAccentTable
             ... (pt_f0[cur_pa, cur_pt] - cur_f0_mean)
             ... / cur_f0_SD
 
-            if whole_file_F0_z_scores
+            if global_F0_z_scores
                 pt_cur_f0_z_global[cur_pa, cur_pt] =
                 ... (pt_f0[cur_pa, cur_pt] - f0_mean_all) / f0_SD_all
             endif
@@ -277,7 +284,7 @@ procedure makePitchAccentTable
     ... { "file", "accent", "type", "point",
     ... "t_secs", "t_norm_syl", "t_norm_PA",
     ... "F0_Hz", "F0_z_score_local", "F0_level" }
-    if whole_file_F0_z_scores
+    if global_F0_z_scores
         Insert column:  10, "F0_z_score_global"
     endif
     # Fill table.
@@ -305,7 +312,7 @@ procedure makePitchAccentTable
            Set string value: cur_row, "F0_z_score_local", cur_cur_f0_z_local$
            Set numeric value: cur_row, "F0_level", cur_level
 
-           if whole_file_F0_z_scores
+           if global_F0_z_scores
                 cur_cur_f0_z_global$ =
                 ... fixed$(pt_cur_f0_z_global[cur_pa, cur_pt], 3)
                 Set string value: cur_row,
@@ -362,7 +369,7 @@ procedure mainUI
         f0_min = pitch_floor
         f0_max = pitch_ceiling
         max_lvl_t_delta = max_time_delta_between_point_and_level / 1000
-        whole_file_F0_z_scores = add_F0_z_scores_based_on_whole_recording
+        global_F0_z_scores = add_F0_z_scores_based_on_whole_recording
 
         # Correct F0 errors.
         if f0_min > f0_max
@@ -495,7 +502,7 @@ procedure checkPitch: .soundobject
     ... octave_cost, octave_jump_cost, vuv_cost, f0_max
     selectObject: .soundobject
     .soundName$ = selected$("Sound")
-    .temp_manip = To Manipulation: 0.01, f0_min, f0_max
+    .temp_manip = noprogress To Manipulation: 0.01, f0_min, f0_max
     Edit
 
     # run pitch error check
@@ -528,9 +535,6 @@ procedure checkPitch: .soundobject
         removeObject: .temp_manip
     endif
     selectObject: .temp_pitch
-    pitch = Interpolate
-    removeObject: .temp_pitch
-    selectObject: pitch
 endproc
 
 procedure getSoundBite: outputVar$, .cur_sound, .s_t, .e_t
@@ -540,15 +544,14 @@ procedure getSoundBite: outputVar$, .cur_sound, .s_t, .e_t
     .temp_grid = To TextGrid: .name$, ""
 
     .grid_s_t = Get start time
-
     if .s_t > .grid_s_t
         Insert boundary: 1, .s_t
     endif
-    .grid_s_t = Get end time
+    .grid_e_t = Get end time
     if .e_t < .grid_e_t
         Insert boundary: 1, .e_t
     endif
-    .num_ints = Get number of intervals
+    .num_ints = Get number of intervals: 1
     if .num_ints = 3
         Set interval text: 1, 2, .name$
     elsif .num_ints = 1
@@ -558,8 +561,6 @@ procedure getSoundBite: outputVar$, .cur_sound, .s_t, .e_t
     else
         Set interval text: 1, 1, .name$
     endif
-
-
 
     selectObject: .cur_sound
     plusObject: .temp_grid
