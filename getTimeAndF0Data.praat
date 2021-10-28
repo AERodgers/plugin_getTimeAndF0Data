@@ -50,9 +50,12 @@
 #                the levels tier.
 #                It is a failsafe in case there is no appropriate matching level
 #                tier annotation. The user is warned if one cannot be found.
-#     2. "Run advanced pitch settings"
+#     2. "Add F0 z scores based on whole recording"
+#                Include F0 z-scores values using the mean and SD of the whole
+#                sound file.
+#     3. "Run advanced pitch settings"
 #                Checking this brings up the advanced pitch settings.
-#     3. "Check pitch contour"
+#     4. "Check pitch contour"
 #                Offers the option to check the pitch contour and correct any
 #                pitch halving or doubling errors.
 #
@@ -62,40 +65,64 @@
 # 2. A value of -1 in the F0_level column means no associated level value was
 #    found in the textgrid.
 
-# Get Variables
-cur_grid = selected("TextGrid")
-cur_sound = selected("Sound")
-@readVariables: ""
+@main
 
+procedure main
+    # Get Variables
+    warnings = 0
+    cur_grid = selected("TextGrid")
+    cur_sound = selected("Sound")
+    selectObject: cur_sound
+    sound_s_t = Get start time
+    sound_e_t = Get end time
+    @readVariables: ""
 
-# Run menus
-@uiMenu
-if run_advanced_pitch_settings
-    @advPitchUI
-endif
+    # Run menus
+    @mainUI
+    if run_advanced_pitch_settings
+        @advPitchUI
+    else
+        # shorten advanced pitch accent variables.
+        max_candidates = max__number_of_candidates
+        vuv_cost = voiced___unvoiced_cost
+    endif
 
-# Run main script
-@mainScript
+    # get mean and z-score for whole sound file
+    if whole_file_F0_z_scores
+        selectObject: cur_sound
+        temp_pitch = noprogress To Pitch (ac): 0.75/f0_min, f0_min,
+        ... max_candidates, "no", silence_threshold, voicing_threshold,
+        ... octave_cost, octave_jump_cost, vuv_cost, f0_max
+        f0_mean_all = Get mean: sound_s_t, sound_e_t, "Hertz"
+        f0_SD_all = Get standard deviation: sound_s_t, sound_e_t, "Hertz"
+        Remove
+    endif
 
-#save variables
-@writeVariables: ""
+    # Run main script.
+    @makePitchAccentTable
 
-exit
+    # Save variables.
+    @writeVariables: ""
+
+    exit
+endproc
 
 # PROCEDURES
-procedure mainScript
-    # Creates a table with time and F0 normalised data.
-    # F0 normalisation is currently done on a PA by PA basis.
-    # Get s and e time of each PA based on "collated" tier.
+procedure makePitchAccentTable
+    # Creates a table with Pitch Accent Data.
+        # F0 normalisation is currently done on a PA by PA basis.
+        # Pitch contour is interpolated.
+
+    # Get start and end time of each PA based on "collated" tier.
     selectObject: cur_grid
     file_name$ = selected$("TextGrid")
     temp_grid = Extract one tier: pa_tier
     pa_table = Down to Table: "no", 3, "yes", "no"
     num_pas = Get number of rows
     for i to num_pas
-        # get s and e time of PA
-        pa_t_s[i] = Get value: i, "tmin"
-        pa_t_e[i] = Get value: i, "tmax"
+        # get start and end time of pitch accent (PA)
+        pa_s_t[i] = Get value: i, "tmin"
+        pa_e_t[i] = Get value: i, "tmax"
         # get type of PA
         pa_text$ = Get value: i, "text"
         e_of_type = index(pa_text$, "-") - 1
@@ -104,52 +131,53 @@ procedure mainScript
     plusObject: temp_grid
     Remove
 
-    # Get times of each turning pt in each PA
+    # Get times of each turning point in each PA.
     selectObject: cur_grid
     for cur_pa to num_pas
-        # Get first pt at inside current PA boundaries.
-        pa_pt_first = Get high index from time: pts_tier, pa_t_s[cur_pa]
-        # Check to see if there is a point at the left PA boundary...
-        pa_pt_check = Get nearest index from time: pts_tier, pa_t_s[cur_pa]
+        # Get first point inside the current PA boundaries.
+        pa_pt_first = Get high index from time: pts_tier, pa_s_t[cur_pa]
+        # Check to see if there is a point flush on the left PA boundary...
+        pa_pt_check = Get nearest index from time: pts_tier, pa_s_t[cur_pa]
         pa_pt_check_t = Get time of point: pts_tier, pa_pt_check
         # ...and use that point if there is.
-        if fixed$(pa_pt_check_t, 3) = fixed$(pa_t_s[cur_pa], 3)
+        if fixed$(pa_pt_check_t, 3) = fixed$(pa_s_t[cur_pa], 3)
             pa_pt_first = pa_pt_check
         endif
 
-        # Get last pt at inside current PA boundaries.
-        pa_pt_last = Get low index from time: pts_tier, pa_t_e[cur_pa]
-        # Check to see if there is a point at the right PA boundary...
-        pa_pt_check = Get nearest index from time: pts_tier, pa_t_e[cur_pa]
+        # Get last pt inside the current PA boundaries.
+        pa_pt_last = Get low index from time: pts_tier, pa_e_t[cur_pa]
+        # Check to see if there is a point flush on the right PA boundary...
+        pa_pt_check = Get nearest index from time: pts_tier, pa_e_t[cur_pa]
         pa_pt_check_t = Get time of point: pts_tier, pa_pt_check
         # ...and use that point if there is.
-        if fixed$(pa_pt_check_t, 3) = fixed$(pa_t_e[cur_pa], 3)
+        if fixed$(pa_pt_check_t, 3) = fixed$(pa_e_t[cur_pa], 3)
             pa_pt_last = pa_pt_check
         endif
 
         num_pts[cur_pa] = pa_pt_last - pa_pt_first + 1
 
-        # Get time of each point in PA
+        # Get time of each point in PA.
         for i to num_pts[cur_pa]
             cur_pt = pa_pt_first - 1 + i
             pt_t[cur_pa, i] = Get time of point: pts_tier, cur_pt
 
-            # Check there is a matching Level Tier value
+            # Find the time of the nearest Level Tier value.
             cur_lvl_pt = Get nearest index from time: lvl_tier, pt_t[cur_pa, i]
             chk_lvl_t = Get time of point: lvl_tier, cur_lvl_pt
 
-            # Warn if there is no matching level tier nearby current point.
+            # Warn if there is no accepably nearby level tier point nearby.
             if abs(chk_lvl_t - pt_t[cur_pa, i]) > max_lvl_t_delta
                 selectObject: cur_grid
                 plusObject: cur_sound
                 level[cur_pa, i] = - 1
                 cur_time$ = fixed$(pt_t[cur_pa, i], 3)
-                warning$ = "No acceptable level tier annotation: point "
-                    ... + string$(cur_pt) + " at " + cur_time$ + "s"
-                appendInfoLine: warning$
-                beginPause: "WARNING"
-                comment: warning$
-                endPause: "Continue", 1, 0
+                if warnings = 0
+                    writeInfoLine: "WARNINGS"
+                    warnings = 1
+                endif
+                appendInfoLine: "No acceptable level tier annotation: point "
+                ... + string$(cur_pt) + " at " + cur_time$ + "s"
+
                 selectObject: cur_grid
             else
                 cur_level$ = Get label of point: lvl_tier, cur_lvl_pt
@@ -158,68 +186,101 @@ procedure mainScript
         endfor
     endfor
 
-    # Get syllable normalized times
+    # Get time-normalization data
     for cur_pa to num_pas
-        syl_one[cur_pa] = Get interval at time: syl_tier, pa_t_s[cur_pa]
-         for cur_pt to num_pts[cur_pa]
+        syl_one[cur_pa] = Get interval at time: syl_tier, pa_s_t[cur_pa]
+        for cur_pt to num_pts[cur_pa]
+            # Get syllable-normalized times.
             cur_syl_num = Get interval at time: syl_tier, pt_t[cur_pa, cur_pt]
-
             syl_num[cur_pa, cur_pt] = cur_syl_num - syl_one[cur_pa] + 1
-
             cur_s_t = Get start time of interval: syl_tier, cur_syl_num
             cur_e_t = Get end time of interval: syl_tier, cur_syl_num
-            pt_t_syl_norm[cur_pa, cur_pt] = syl_num[cur_pa, cur_pt] - 1
-                                        ... + (pt_t[cur_pa, cur_pt] - cur_s_t)
-                                        ... / (cur_e_t - cur_s_t)
-         endfor
-    endfor
-
-    # Get IP normalized times
-    for cur_pa to num_pas
-         for cur_pt to num_pts[cur_pa]
-            pt_t_pa_norm[cur_pa, cur_pt] = (pt_t[cur_pa, cur_pt] - pa_t_s[cur_pa])
-                                        ... / (pa_t_e[cur_pa] - pa_t_s[cur_pa])
-         endfor
-     endfor
-
-     # Get IP normalized times
-    for cur_pa to num_pas
-        for cur_pt to num_pts[cur_pa]
-            pt_t_pa_norm[cur_pa, cur_pt] = (pt_t[cur_pa, cur_pt] - pa_t_s[cur_pa])
-                                       ... / (pa_t_e[cur_pa] - pa_t_s[cur_pa])
+            pt_s_tyl_norm[cur_pa, cur_pt] = syl_num[cur_pa, cur_pt] - 1
+            ... + (pt_t[cur_pa, cur_pt] - cur_s_t) / (cur_e_t - cur_s_t)
+            # Get PA-normalized times.
+            pt_t_pa_norm[cur_pa, cur_pt] =
+            ... (pt_t[cur_pa, cur_pt] - pa_s_t[cur_pa])
+            ... / (pa_e_t[cur_pa] - pa_s_t[cur_pa])
         endfor
     endfor
 
-    # Get F0 info
-    if check_pitch_contour
-        @checkPitch: cur_sound
-
-    else
-        selectObject: cur_sound
-        pitch_temp = To Pitch (ac): 0, f0_min, max_candidates, "no",
-                                ... silence_threshold, voicing_threshold,
-                                ... octave_cost, octave_jump_cost, vuv_cost,
-                                ... f0_max
-        pitch = Interpolate
-        removeObject: pitch_temp
-    endif
-
 
     for cur_pa to num_pas
-        f0_mean = Get mean: pa_t_s[cur_pa], pa_t_e[cur_pa], "Hertz"
-        f0_SD = Get standard deviation: pa_t_s[cur_pa], pa_t_e[cur_pa], "Hertz"
+        # Get current PA sound from start of first syllable to end of last.
+        # get start time of first and end time of last last syllable in the PA.
+        selectObject: cur_grid
+        cur_syl_one = Get interval at time: syl_tier, pa_s_t[cur_pa]
+        cur_syl_one_s_t = Get start time of interval: syl_tier, cur_syl_one
+        cur_syl_last = Get interval at time: syl_tier, pa_e_t[cur_pa]
+        cur_syl_last_e_t = Get end time of interval: syl_tier, cur_syl_last
+        # give some leeway for pitch measurements
+        cur_syl_one_s_t -= 0.2
+        if cur_syl_one_s_t < sound_s_t
+            cur_syl_one_s_t = sound_s_t
+        endif
+
+        cur_syl_last_e_t += 0.2
+        if cur_syl_last_e_t > sound_e_t
+            cur_syl_last_e_t = sound_e_t
+        endif
+
+        @getSoundBite: "temp_sound", cur_sound,
+                    ... cur_syl_one_s_t, cur_syl_last_e_t
+
+        # Get pitch contour.
+        if check_pitch_contour
+            @checkPitch: temp_sound
+        else
+            pitch_temp = noprogress To Pitch (ac): 0, f0_min,
+            ... max_candidates, "no", silence_threshold, voicing_threshold,
+            ... octave_cost, octave_jump_cost, vuv_cost, f0_max
+            pitch = Interpolate
+            removeObject: pitch_temp
+        endif
+        removeObject: temp_sound
+
+        # Get F0 data
+        selectObject: pitch
+        # Calculate F0 mean and standard deviation for current Pitch Accent.
+        cur_f0_mean = Get mean: pa_s_t[cur_pa] - cur_syl_one_s_t,
+        ... pa_e_t[cur_pa] - cur_syl_one_s_t, "Hertz"
+        cur_f0_SD = Get standard deviation: pa_s_t[cur_pa] - cur_syl_one_s_t,
+        ... pa_e_t[cur_pa] - cur_syl_one_s_t, "Hertz"
         for cur_pt to num_pts[cur_pa]
+            # Get F0 in Hertz.
             pt_f0[cur_pa, cur_pt] = Get value at time:
-                                    ... pt_t[cur_pa, cur_pt], "Hertz", "linear"
-            pt_f0_z[cur_pa, cur_pt] = (pt_f0[cur_pa, cur_pt] - f0_mean) / f0_SD
-        endfor
-    endfor
-    Remove
+            ... pt_t[cur_pa, cur_pt] - cur_syl_one_s_t, "Hertz", "linear"
+            # Get F0 as local PA-domain z-score.
+            pt_cur_f0_z_local[cur_pa, cur_pt] =
+            ... (pt_f0[cur_pa, cur_pt] - cur_f0_mean)
+            ... / cur_f0_SD
 
+            if whole_file_F0_z_scores
+                pt_cur_f0_z_global[cur_pa, cur_pt] =
+                ... (pt_f0[cur_pa, cur_pt] - f0_mean_all) / f0_SD_all
+            endif
+
+            if pt_f0[cur_pa, cur_pt] = undefined
+                if warnings = 0
+                    writeInfoLine: "WARNINGS"
+                    warnings = 1
+                endif
+                appendInfoLine: "F0 undefined at:" fixed(pt_t[cur_pa, cur_pt])
+            endif
+        endfor
+        removeObject: pitch
+    endfor
+
+    # Create empty table.
     cur_row = 0
     my_table = Create Table with column names: file_name$, cur_row,
     ... { "file", "accent", "type", "point",
-    ... "t_secs", "t_norm_syl", "t_norm_PA", "F0_Hz", "F0_z_score", "F0_level" }
+    ... "t_secs", "t_norm_syl", "t_norm_PA",
+    ... "F0_Hz", "F0_z_score_local", "F0_level" }
+    if whole_file_F0_z_scores
+        Insert column:  10, "F0_z_score_global"
+    endif
+    # Fill table.
     for cur_pa to num_pas
         cur_pa$ = pa_type$[cur_pa]
         for cur_pt to num_pts[cur_pa]
@@ -227,10 +288,10 @@ procedure mainScript
            cur_row += 1
 
            cur_t$ = fixed$(pt_t[cur_pa, cur_pt], 3)
-           cur_syl_t$ = left$(fixed$(pt_t_syl_norm[cur_pa, cur_pt], 3), 5)
-           cur_pa_t$ = left$(fixed$(pt_t_pa_norm[cur_pa, cur_pt], 3), 5)
+           cur_syl_t$ = fixed$(round(pt_s_tyl_norm[cur_pa, cur_pt]*1000)/1000, 3)
+           cur_pa_t$ = fixed$(round(pt_t_pa_norm[cur_pa, cur_pt]*1000)/1000, 3)
            cur_f0_Hz$ = fixed$(pt_f0[cur_pa, cur_pt], 0)
-           cur_f0_z$ = fixed$(pt_f0_z[cur_pa, cur_pt], 3)
+           cur_cur_f0_z_local$ = fixed$(pt_cur_f0_z_local[cur_pa, cur_pt], 3)
            cur_level = level[cur_pa, cur_pt]
 
            Set string value: cur_row, "file", file_name$
@@ -241,16 +302,26 @@ procedure mainScript
            Set string value: cur_row, "t_norm_syl", cur_syl_t$
            Set string value: cur_row, "t_norm_PA", cur_pa_t$
            Set string value: cur_row, "F0_Hz", cur_f0_Hz$
-           Set string value: cur_row, "F0_z_score", cur_f0_z$
+           Set string value: cur_row, "F0_z_score_local", cur_cur_f0_z_local$
            Set numeric value: cur_row, "F0_level", cur_level
+
+           if whole_file_F0_z_scores
+                cur_cur_f0_z_global$ =
+                ... fixed$(pt_cur_f0_z_global[cur_pa, cur_pt], 3)
+                Set string value: cur_row,
+                ... "F0_z_score_global", cur_cur_f0_z_global$
+           endif
+
        endfor
     endfor
 
+    # Return object window to its original selection state.
     selectObject: cur_grid
     plusObject: cur_sound
 endproc
 
-procedure uiMenu
+procedure mainUI
+    # runs main UI
     okay = 0
     while not okay
         selectObject: cur_grid
@@ -267,6 +338,8 @@ procedure uiMenu
             comment: "Pitch Information"
             natural: "Pitch floor", pitch_floor
             natural: "Pitch ceiling", pitch_ceiling
+            boolean: "Add F0 z scores based on whole recording",
+            ... add_F0_z_scores_based_on_whole_recording
             comment: "Other"
             boolean: "Run advanced pitch settings", run_advanced_pitch_settings
             boolean: "Check pitch contour", check_pitch_contour
@@ -285,10 +358,13 @@ procedure uiMenu
         @findTier: "pts_tier", cur_grid, points_tier$, 0
         okay = okay * lvl_tier
 
+        # Shorten long variable names.
         f0_min = pitch_floor
         f0_max = pitch_ceiling
         max_lvl_t_delta = max_time_delta_between_point_and_level / 1000
+        whole_file_F0_z_scores = add_F0_z_scores_based_on_whole_recording
 
+        # Correct F0 errors.
         if f0_min > f0_max
             f0_temp = f0_max
             f0_max = f0_min
@@ -298,13 +374,12 @@ procedure uiMenu
             beginPause: "Swapping min and max F0 values."
             endPause: "OK"
         endif
-
-        max_candidates = max__number_of_candidates
-        vuv_cost = voiced___unvoiced_cost
     endwhile
 endproc
 
 procedure advPitchUI
+    # Runs advanced pitch UI
+
     selectObject: cur_grid
     plusObject: cur_sound
 	beginPause: "Variables for To Pitch (ac) built-in Praat function"
@@ -325,6 +400,8 @@ procedure advPitchUI
 endproc
 
 procedure readVariables: .directory$
+    # Initializes variables using names and values in "variables.bin" table.
+        # directory$ = location of "variables.bin".
     Read from file: .directory$ + "/variables.bin"
     .num_rows = Get number of rows
     for .i to .num_rows
@@ -343,19 +420,25 @@ procedure readVariables: .directory$
 endproc
 
 procedure writeVariables: .directory$
-    Read from file: .directory$ + "/variables.bin"
-    .num_rows = Get number of rows
-    for .i to .num_rows
-        .cur_var$ = Get value: .i, "variable"
-        .cur_val$ = Get value: .i, "value"
-        if right$(.cur_var$, 1) = "$"
-            Set string value: .i, "value", '.cur_var$'
-            else
-                Set numeric value: .i, "value", '.cur_var$'
-            endif
+    # Stores variables using names and values in "variables.bin" table.
+        # directory$ = location of "variables.bin".
+        # Assumes that variables have been initialzed using @readVariables
+
+    if variableExists("readVariables.directory$")
+        Read from file: .directory$ + "/variables.bin"
+        .num_rows = Get number of rows
+        for .i to .num_rows
+            .cur_var$ = Get value: .i, "variable"
+            .cur_val$ = Get value: .i, "value"
+            if right$(.cur_var$, 1) = "$"
+                Set string value: .i, "value", '.cur_var$'
+                else
+                    Set numeric value: .i, "value", '.cur_var$'
+                endif
         endfor
         Save as binary file: .directory$ + "/variables.bin"
         Remove
+    endif
 endproc
 
 procedure findTier: .outputVar$, .grid, .tier$, .type
@@ -366,10 +449,6 @@ procedure findTier: .outputVar$, .grid, .tier$, .type
         # .type       = type of tier (0 = point, 1 = interval)
         #
         # If a tier name of the appropriate type is not found, 0 is returned.
-        #
-        # Antoin Eoin Rodgers
-        # rodgeran@tcd.ie
-        # Phonetics and speech Laboratory, Trinity College Dublin
 
     '.outputVar$' = 0
     selectObject: .grid
@@ -407,12 +486,13 @@ procedure findTier: .outputVar$, .grid, .tier$, .type
 endproc
 
 procedure checkPitch: .soundobject
-    # create pitch objects
+    # Allows the user to check for errors in the pitch track of ".soundobject".
+
+    # create pitch objects.
     selectObject: .soundobject
-    .pitchTrackOrig = To Pitch (ac): 0.75/f0_min, f0_min, max_candidates, "no",
-                                ... silence_threshold, voicing_threshold,
-                                ... octave_cost, octave_jump_cost, vuv_cost,
-                                ... f0_max
+    .pitchOrig = noprogress To Pitch (ac): 0.75/f0_min, f0_min,
+    ... max_candidates, "no", silence_threshold, voicing_threshold,
+    ... octave_cost, octave_jump_cost, vuv_cost, f0_max
     selectObject: .soundobject
     .soundName$ = selected$("Sound")
     .temp_manip = To Manipulation: 0.01, f0_min, f0_max
@@ -424,27 +504,65 @@ procedure checkPitch: .soundobject
         comment: "You can correct any pitch tracking errors you see."
         comment: ""
         comment: "Use: [Pitch] > [Multiply pitch frequencies...] > [Factor]"
-        comment: ""
         comment: tab$ + "2  = double pitch"
         comment: tab$ + "0.5 = halve pitch"
+        comment: ""
+        comment: "Switch off Check Pitch funtion:"
+        boolean: "Check pitch contour", check_pitch_contour
     .continue = endPause: "Cancel", "Continue", 2, 0
     .continue = (.continue == 2)
-    # end proc if cancel selected
+
+    # Process corrections to pitch contour.
     if .continue
         selectObject: .temp_manip
         .tempPitchTier = Extract pitch tier
-        plusObject: .pitchTrackOrig
+        plusObject: .pitchOrig
         .temp_pitch = To Pitch
         selectObject: .tempPitchTier
         plusObject: .temp_manip
-        plusObject: .pitchTrackOrig
+        plusObject: .pitchOrig
         Remove
+    # Ignore changes if cancel selected.
     else
-        .temp_pitch = .pitchTrackOrig
+        .temp_pitch = .pitchOrig
         removeObject: .temp_manip
     endif
     selectObject: .temp_pitch
     pitch = Interpolate
     removeObject: .temp_pitch
     selectObject: pitch
+endproc
+
+procedure getSoundBite: outputVar$, .cur_sound, .s_t, .e_t
+    # Extract a chunk of sound between two time points.
+    selectObject: .cur_sound
+    .name$ = selected$("Sound")
+    .temp_grid = To TextGrid: .name$, ""
+
+    .grid_s_t = Get start time
+
+    if .s_t > .grid_s_t
+        Insert boundary: 1, .s_t
+    endif
+    .grid_s_t = Get end time
+    if .e_t < .grid_e_t
+        Insert boundary: 1, .e_t
+    endif
+    .num_ints = Get number of intervals
+    if .num_ints = 3
+        Set interval text: 1, 2, .name$
+    elsif .num_ints = 1
+        Set interval text: 1, 1, .name$
+    elsif .s_t <= .grid_s_t
+        Set interval text: 1, 2, .name$
+    else
+        Set interval text: 1, 1, .name$
+    endif
+
+
+
+    selectObject: .cur_sound
+    plusObject: .temp_grid
+    'outputVar$' = Extract non-empty intervals: 1, "no"
+    removeObject: .temp_grid
 endproc
