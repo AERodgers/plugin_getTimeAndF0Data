@@ -17,7 +17,7 @@ The F0 data includes:
 * PoLaR level values
 
 
-To use the plugin, select "Clone or download" followed by "Download ZIP".
+To use the plugin, select "Code" followed by "Download ZIP".
 Extract the ZIP file and copy the plugin_getTimeAndF0Data folder to your Praat preferences directory. (See http://www.fon.hum.uva.nl/praat/manual/preferences_directory.html for more information.)
 
 ----------------
