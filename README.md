@@ -12,7 +12,8 @@ The time data includes:
 The F0 data includes:
 
 * F0 in Hertz
-* F0 normalised to local PA z-score
+* F0 z-score normalised re local PA F0 mean and standard deviation.
+* F0 z-score normalised re global (file-wide) F0 mean and standard deviation.
 * PoLaR level values
 
 
