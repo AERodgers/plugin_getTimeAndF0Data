@@ -20,6 +20,6 @@ Points | point tier | Turning points as per PoLaR annotation.
 Levels | point tier | PoLaR Levels annotation tier.
 Syllable | interval tier | Syllable-wise division of the utterance(s).
 Pitch Accent | interval tier | Uses Interval to mark the start and end of each pitch accents, with text headed with "N-" or "PN-" for nuclear and pre-nuclear respectively
-
+ 
 NOTE: This there may be some idiosyncrasies in the script as it was designed to aid a fellow PhD student's research.
 
