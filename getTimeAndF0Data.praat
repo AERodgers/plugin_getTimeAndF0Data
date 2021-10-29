@@ -146,7 +146,7 @@ procedure makePitchAccentTable
         pa_pt_check = Get nearest index from time: pts_tier, pa_s_t[cur_pa]
         pa_pt_check_t = Get time of point: pts_tier, pa_pt_check
         # ...and use that point if there is.
-        if fixed$(pa_pt_check_t, 3) = fixed$(pa_s_t[cur_pa], 3)
+        if fixed$(pa_pt_check_t, 3) == fixed$(pa_s_t[cur_pa], 3)
             pa_pt_first = pa_pt_check
         endif
 
@@ -156,7 +156,7 @@ procedure makePitchAccentTable
         pa_pt_check = Get nearest index from time: pts_tier, pa_e_t[cur_pa]
         pa_pt_check_t = Get time of point: pts_tier, pa_pt_check
         # ...and use that point if there is.
-        if fixed$(pa_pt_check_t, 3) = fixed$(pa_e_t[cur_pa], 3)
+        if fixed$(pa_pt_check_t, 3) == fixed$(pa_e_t[cur_pa], 3)
             pa_pt_last = pa_pt_check
         endif
 
@@ -177,7 +177,7 @@ procedure makePitchAccentTable
                 plusObject: cur_sound
                 level[cur_pa, i] = - 1
                 cur_time$ = fixed$(pt_t[cur_pa, i], 3)
-                if warnings = 0
+                if warnings == 0
                     writeInfoLine: "WARNINGS"
                     warnings = 1
                 endif
@@ -231,7 +231,7 @@ procedure makePitchAccentTable
         endif
 
         @getSoundBite: "temp_sound", cur_sound,
-                    ... cur_syl_one_s_t, cur_syl_last_e_t
+        ... cur_syl_one_s_t, cur_syl_last_e_t
 
         # Get pitch contour.
         if check_pitch_contour
@@ -267,8 +267,8 @@ procedure makePitchAccentTable
                 ... (pt_f0[cur_pa, cur_pt] - f0_mean_all) / f0_SD_all
             endif
 
-            if pt_f0[cur_pa, cur_pt] = undefined
-                if warnings = 0
+            if pt_f0[cur_pa, cur_pt] == undefined
+                if warnings == 0
                     writeInfoLine: "WARNINGS"
                     warnings = 1
                 endif
@@ -351,7 +351,7 @@ procedure mainUI
             boolean: "Run advanced pitch settings", run_advanced_pitch_settings
             boolean: "Check pitch contour", check_pitch_contour
         my_choice = endPause: "Exit", "Process", 2, 0
-        if my_choice = 1
+        if my_choice == 1
             exit
         endif
 
@@ -373,13 +373,15 @@ procedure mainUI
 
         # Correct F0 errors.
         if f0_min > f0_max
+            if warnings == 0
+                writeInfoLine: "WARNINGS"
+                warnings == 1
+            endif
+            appendInfoLine: "MAIN UI: min F0 higher than max F0: "
+            ... + "Swapping min and max F0 values."
             f0_temp = f0_max
             f0_max = f0_min
             f0_min = f0_max
-            selectObject: cur_grid
-            plusObject: cur_sound
-            beginPause: "Swapping min and max F0 values."
-            endPause: "OK"
         endif
     endwhile
 endproc
@@ -399,7 +401,7 @@ procedure advPitchUI
 		positive: "Voiced / unvoiced cost", voiced___unvoiced_cost
 	.edit_choice = endPause:
 		... "Exit", "Continue", 2, 1
-    if .edit_choice = 1
+    if .edit_choice == 1
         exit
     endif
     max_candidates = max__number_of_candidates
@@ -437,7 +439,7 @@ procedure writeVariables: .directory$
         for .i to .num_rows
             .cur_var$ = Get value: .i, "variable"
             .cur_val$ = Get value: .i, "value"
-            if right$(.cur_var$, 1) = "$"
+            if right$(.cur_var$, 1) == "$"
                 Set string value: .i, "value", '.cur_var$'
                 else
                     Set numeric value: .i, "value", '.cur_var$'
@@ -552,9 +554,9 @@ procedure getSoundBite: outputVar$, .cur_sound, .s_t, .e_t
         Insert boundary: 1, .e_t
     endif
     .num_ints = Get number of intervals: 1
-    if .num_ints = 3
+    if .num_ints == 3
         Set interval text: 1, 2, .name$
-    elsif .num_ints = 1
+    elsif .num_ints == 1
         Set interval text: 1, 1, .name$
     elsif .s_t <= .grid_s_t
         Set interval text: 1, 2, .name$
