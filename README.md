@@ -8,6 +8,7 @@ The time data includes:
 * time in seconds
 * time normalised to syllable count
 * time normalised to Pitch Accent duration
+* time centred around the centre of the lexically stressed syllable ("*") and normalised to the duration from the star to the last turning point in the PA.
 
 The F0 data includes:
 
@@ -15,7 +16,6 @@ The F0 data includes:
 * F0 z-score normalised re local PA F0 mean and standard deviation
 * F0 z-score normalised re global (file-wide) F0 mean and standard deviation (if requested)
 * PoLaR level values
-
 
 To use the plugin, select "Code" followed by "Download ZIP".
 Extract the ZIP file and copy the plugin_getTimeAndF0Data folder to your Praat preferences directory. (See http://www.fon.hum.uva.nl/praat/manual/preferences_directory.html for more information.)
@@ -26,6 +26,7 @@ The script expects four tiers:
 Tier | Type | Comment
 ----|----|----
 Points | point tier | Turning points as per PoLaR annotation.
+Prosodic structure | point tier | as per PoLaR annotation, marking the centre of lexically stressed syllables with a "*".
 Levels | point tier | PoLaR Levels annotation tier.
 Syllable | interval tier | Syllable-wise division of the utterance(s).
 Pitch Accent | interval tier | Uses Interval to mark the start and end of each pitch accents, with text headed with "N-" or "PN-" for nuclear and pre-nuclear respectively.
@@ -69,3 +70,9 @@ The option to get the time and F0 Data appears under "Polar Data Extraction" hea
 1. The pitch contour is interpolated to mitigate against undefined F0 values. If there are (for any reason) still undefined time points, a warning appears in the Info window.
 2. A value of -1 in the F0_level column means no associated level value was found in the TextGrid.
 3. This there may be some idiosyncrasies in the script as it was designed to aid a fellow PhD student's research.
+
+## Change log
+0.0.3
+* PA times are now relative to the first turning point in the PA.
+* Added time normalized to starred tone.
+* Script ends by selecting the output table.
