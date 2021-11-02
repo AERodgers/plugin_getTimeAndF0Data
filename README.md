@@ -26,7 +26,7 @@ The script expects four tiers:
 Tier | Type | Comment
 ----|----|----
 Points | point tier | Turning points as per PoLaR annotation.
-Prosodic structure | point tier | as per PoLaR annotation, marking the centre of lexically stressed syllables with a "*".
+Prosodic structure | point tier | as per PoLaR annotation, marking the centre of lexically stressed syllables with a "*" at least.
 Levels | point tier | PoLaR Levels annotation tier.
 Syllable | interval tier | Syllable-wise division of the utterance(s).
 Pitch Accent | interval tier | Uses Interval to mark the start and end of each pitch accents, with text headed with "N-" or "PN-" for nuclear and pre-nuclear respectively.
