@@ -1,6 +1,6 @@
 # Get Time and F0 Data from a Polar Annotated TextGrid and Sound Combo
 # ====================================================================
-# Version 0.0.4
+# Version 0.1.0
 #
 # Written for Praat 6.0.40
 #
@@ -124,8 +124,6 @@ endproc
 
 # PROCEDURES
 procedure makePitchAccentTable
-    appendInfo: "cur_pa", tab$, "cur_pt", tab$, "pt_t_A", tab$, "pt_t_S"
-    appendInfo: tab$, "--> ", "pt_t_R", newline$
     # Creates a table with Pitch Accent Data.
         # F0 normalisation is currently done on a PA by PA basis.
         # Pitch contour is interpolated.
@@ -210,7 +208,7 @@ procedure makePitchAccentTable
                 level[cur_pa, i] = - 1
                 cur_time$ = fixed$(pt_t[cur_pa, i], 3)
                 if warnings == 0
-                    writeInfoLine: "WARNINGS"
+                    writeInfoLine: "WARNINGS", newline$, "========"
                     warnings = 1
                 endif
                 appendInfoLine: "No acceptable level tier annotation: point "
@@ -286,9 +284,29 @@ procedure makePitchAccentTable
         f0_SD[cur_pa] = Get standard deviation: pa_s_t[cur_pa] - cur_syl_one_s_t,
         ... pa_e_t[cur_pa] - cur_syl_one_s_t, "Hertz"
         for cur_pt to num_pts[cur_pa]
+            selectObject: pitch
             # Get F0 in Hertz.
             pt_f0[cur_pa, cur_pt] = Get value at time:
             ... pt_t[cur_pa, cur_pt] - cur_syl_one_s_t, "Hertz", "linear"
+
+            # Handle undefined F0 value
+            if pt_f0[cur_pa, cur_pt] == undefined
+                if warnings == 0
+                    writeInfoLine: "WARNINGS", newline$, "========"
+                    warnings = 1
+                endif
+                appendInfoLine: "F0 undefined at: ",
+                ... fixed$(pt_t[cur_pa, cur_pt], 3)
+
+                # allow manual correction of undefined F0.
+                if manual_F0
+                    @addF0Manually: "cur_grid", cur_sound,
+                    ... pt_t[cur_pa, cur_pt], 2,
+                    ... points_tier$ + " " + syllable_tier$,
+                    ... "pt_f0[cur_pa, cur_pt]"
+                endif
+            endif
+
             # Get F0 as local PA-domain z-score.
             pt_cur_f0_z_local[cur_pa, cur_pt] =
             ... (pt_f0[cur_pa, cur_pt] - f0_mean[cur_pa])
@@ -299,16 +317,6 @@ procedure makePitchAccentTable
                 ... (pt_f0[cur_pa, cur_pt] - f0_mean_all) / f0_SD_all
             endif
 
-            if pt_f0[cur_pa, cur_pt] == undefined
-                if warnings == 0
-                    writeInfoLine: "WARNINGS"
-                    warnings = 1
-                endif
-                appendInfoLine: "F0 undefined at: ",
-                ... fixed$(pt_t[cur_pa, cur_pt], 3)
-                # 05.01.2022 TO DO: add option to add F0 value add F0 manually.
-                # @addF0Manually: text_grid, sound_file, time_point, window_size
-            endif
         endfor
         removeObject: pitch
 
@@ -418,9 +426,23 @@ procedure mainUI
             comment: "Other"
             boolean: "Run advanced pitch settings", run_advanced_pitch_settings
             boolean: "Check pitch contour", check_pitch_contour
+            boolean: "Correct undefined F0", correct_undefined_F0
         my_choice = endPause: "Exit", "Process", 2, 0
         if my_choice == 1
             exit
+        endif
+
+        # Correct F0 errors.
+        if pitch_floor > pitch_ceiling
+            if warnings == 0
+                writeInfoLine: "WARNINGS", newline$, "========"
+                warnings = 1
+            endif
+            appendInfoLine: "UI error: pitch floor higher than pitch ceiling: "
+            ... + "Swapping values."
+            f0_temp = pitch_ceiling
+            pitch_ceiling = pitch_floor
+            pitch_floor = f0_temp
         endif
 
         # Shorten long variable names.
@@ -428,6 +450,7 @@ procedure mainUI
         f0_max = pitch_ceiling
         max_lvl_t_delta = max_time_delta_between_point_and_level / 1000
         global_F0_z_scores = add_F0_z_scores_based_on_whole_recording
+        manual_F0 = correct_undefined_F0
 
         # Find tier numbers (0 = not found)
         @findTier: "syl_tier", cur_grid, syllable_tier$, 1
@@ -441,18 +464,6 @@ procedure mainUI
         @findTier: "star_tier", cur_grid, prosodic_structure_tier$, 0
         okay = okay * lvl_tier
 
-        # Correct F0 errors.
-        if f0_min > f0_max
-            if warnings == 0
-                writeInfoLine: "WARNINGS"
-                warnings == 1
-            endif
-            appendInfoLine: "MAIN UI: min F0 higher than max F0: "
-            ... + "Swapping min and max F0 values."
-            f0_temp = f0_max
-            f0_max = f0_min
-            f0_min = f0_max
-        endif
     endwhile
 endproc
 
@@ -586,7 +597,7 @@ procedure checkPitch: .soundobject
         comment: tab$ + "2  = double pitch"
         comment: tab$ + "0.5 = halve pitch"
         comment: ""
-        comment: "Switch off Check Pitch funtion:"
+        comment: "Switch off Check Pitch function:"
         boolean: "Check pitch contour", check_pitch_contour
     .continue = endPause: "Cancel", "Continue", 2, 0
     .continue = (.continue == 2)
@@ -638,4 +649,165 @@ procedure getSoundBite: outputVar$, .cur_sound, .s_t, .e_t
     plusObject: .temp_grid
     'outputVar$' = Extract non-empty intervals: 1, "no"
     removeObject: .temp_grid
+endproc
+
+procedure textgridTemp: .original$, .keep_list$
+    # Creates a temporary TextGrid from '.original$' textgrid which only
+    # includes tiers listed in space-separated string, .keep_list$.
+
+    # convert .keep_list$ to array of tiers to be kept
+    .list_length = length(.keep_list$)
+    .n = 1
+    .prev_start = 1
+    for .i to .list_length
+        .char$ = mid$(.keep_list$, .i, 1)
+        if .char$ = " "
+            .keep$[.n] = mid$(.keep_list$, .prev_start, .i - .prev_start)
+            .n += 1
+            .prev_start = .i + 1
+        endif
+
+        if .n = 1
+            .keep$[.n] = .keep_list$
+        else
+            .keep$[.n] = mid$
+                ... (.keep_list$, .prev_start, .list_length - .prev_start + 1)
+        endif
+    endfor
+
+    selectObject: '.original$'
+    .num_tiers = Get number of tiers
+    .name$ = selected$("TextGrid")
+    .name$ = .name$ + "_temp"
+    # create a copy of '.original$'.
+    .object = Copy: .name$
+    # Remove all tiers not in .keep_list$.
+    for .i to .num_tiers
+        .cur_tier = .num_tiers + 1 - .i
+        .tiersInTemp = Get number of tiers
+        .name_cur$ = Get tier name: .cur_tier
+        .keepMe = 0
+        for .j to .n
+            if .keep$[.j] = .name_cur$
+                .keepMe = 1
+            endif
+        endfor
+        if not .keepMe
+            Remove tier: .cur_tier
+        endif
+    endfor
+
+    # Create flag to show temp grid exists.
+    .exists = 1
+endproc
+
+procedure textgridMerge
+    # Merges temporary TextGridcreated in @textgridTemp original textgrid.
+    if not variableExists("textgridTemp.exists")
+        textgridTemp.exists = 0
+    endif
+
+    # Only run merge if a temporary textgrid has been created in @textgridTemp.
+    if textgridTemp.exists
+        # get number of and list of original and temporary tiers
+        selectObject: textgridTemp.object
+        .temp_n_tiers = Get number of tiers
+        for .i to .temp_n_tiers
+            .temp_tier$[.i] = Get tier name: .i
+        endfor
+        selectObject: 'textgridTemp.original$'
+        .orig_n_tiers = Get number of tiers
+        .name$ = selected$("TextGrid")
+        for .i to .orig_n_tiers
+            .orig_tier$[.i] = Get tier name: .i
+        endfor
+
+        # create 1st tier of merged tier
+        selectObject: 'textgridTemp.original$'
+        Extract one tier: 1
+        .new = selected()
+        if .orig_tier$[1] = .temp_tier$[1]
+            selectObject: textgridTemp.object
+            Extract one tier: 1
+            .temp_single_tier = selected ()
+            plusObject: .new
+            Merge
+            .newNew =selected()
+            Remove tier: 1
+            selectObject: .temp_single_tier
+            plusObject: .new
+            Remove
+            .new = .newNew
+        endif
+
+        # merge tiers 2 to .orig_n_tiers
+        for .i from 2 to .orig_n_tiers
+            .useTemp = 0
+            for .j to .temp_n_tiers
+                if .orig_tier$[.i] =  .temp_tier$[.j]
+                    .useTemp = .j
+                endif
+            endfor
+            if .useTemp
+                selectObject: textgridTemp.object
+                Extract one tier: .useTemp
+            else
+                selectObject: 'textgridTemp.original$'
+                Extract one tier: .i
+            endif
+            .temp_single_tier = selected ()
+            plusObject: .new
+            Merge
+            .newNew =selected()
+            selectObject: .temp_single_tier
+            plusObject: .new
+            Remove
+            .new = .newNew
+        endfor
+        selectObject: 'textgridTemp.original$'
+        plusObject: textgridTemp.object
+        Remove
+        'textgridTemp.original$' = .new
+        selectObject: 'textgridTemp.original$'
+        Rename: .name$
+        textgridTemp.exists = 0
+    endif
+endproc
+
+procedure addF0Manually: .textgrid_var$, .sound_obj, .time_pt, .win_size
+    ... .tiers_to_keep$, .output_var$
+    # Get start and end times of object view window
+    selectObject: .sound_obj
+    .sound_start = Get start time
+    .sound_end = Get end time
+    .win_size /= 2
+    .win_start = .time_pt - .win_size
+    if .win_start < .sound_start
+        .win_start = .sound_start
+    endif
+    .win_end = .time_pt + .win_size
+    if .win_end > .sound_end
+        .win_end = .sound_end
+    endif
+
+    @textgridTemp: .textgrid_var$, .tiers_to_keep$
+    selectObject: textgridTemp.object
+    plusObject: .sound_obj
+    Edit
+    editor: textgridTemp.object
+        Move cursor to: .win_start
+        Move end of selection by: .win_end - .win_start
+        Zoom to selection
+        Move cursor to: .time_pt
+    endeditor
+
+    beginPause: "Choose F0 Manually."
+        comment: "F0 could not be defined at " + fixed$(.time_pt, 3) + "."
+        comment: "Please use the editor window to help you define F0"
+        comment: "at the selected time point manually."
+        positive: "F0 in Hertz", undefined
+    .choice = endPause: "define", 1, 0
+    '.output_var$' = f0_in_Hertz
+
+    @textgridMerge
 endproc
