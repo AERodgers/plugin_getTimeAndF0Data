@@ -1,6 +1,6 @@
 # Get Time and F0 Data from a Polar Annotated TextGrid and Sound Combo
 # ====================================================================
-# Version 0.0.3
+# Version 0.0.4
 #
 # Written for Praat 6.0.40
 #
@@ -304,7 +304,10 @@ procedure makePitchAccentTable
                     writeInfoLine: "WARNINGS"
                     warnings = 1
                 endif
-                appendInfoLine: "F0 undefined at:" fixed$(pt_t[cur_pa, cur_pt])
+                appendInfoLine: "F0 undefined at: ",
+                ... fixed$(pt_t[cur_pa, cur_pt], 3)
+                # 05.01.2022 TO DO: add option to add F0 value add F0 manually.
+                # @addF0Manually: text_grid, sound_file, time_point, window_size
             endif
         endfor
         removeObject: pitch
@@ -345,13 +348,13 @@ procedure makePitchAccentTable
             cur_row += 1
 
             cur_t$ = fixed$(pt_t[cur_pa, cur_pt], 3)
-            cur_syl_t$ = fixed$(round(pt_s_tyl_norm[cur_pa, cur_pt]*1000)/1000, 3)
-            cur_pa_t$ = fixed$(round(pt_t_pa_norm[cur_pa, cur_pt]*1000)/1000, 3)
+            cur_syl_t$ = fixed$(pt_s_tyl_norm[cur_pa, cur_pt], 3)
+            cur_pa_t$ = fixed$(pt_t_pa_norm[cur_pa, cur_pt], 3)
             cur_f0_Hz$ = fixed$(pt_f0[cur_pa, cur_pt], 0)
             cur_cur_f0_z_local$ = fixed$(pt_cur_f0_z_local[cur_pa, cur_pt], 3)
             cur_level = level[cur_pa, cur_pt]
             t_norm_star = (pt_t[cur_pa, cur_pt] - cur_star_t) / cur_star_denom
-            t_norm_star$ = fixed$(round(t_norm_star*1000)/1000, 3)
+            t_norm_star$ = fixed$(t_norm_star*1000, 3)
             Set string value: cur_row, "file", file_name$
             Set numeric value: cur_row, "accent", cur_pa
             Set string value: cur_row, "type", pa_type$[cur_pa]
