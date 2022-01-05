@@ -1,4 +1,4 @@
-# plugin_getTimeAndF0Data
+# plugin_getTimeAndF0Data (v.0.1.0)
 A Praat plugin to create a table with time and F0 data extracted from a Sound object and TextGrid annotated (broadly) using [PoLaR](https://www.polarlabels.com/).
 
 It requires [Praat version 6.x.x](http://www.fon.hum.uva.nl/praat/).
@@ -65,6 +65,11 @@ The option to get the time and F0 Data appears under "Polar Data Extraction" hea
 4. **Check pitch contour**
 
     Offers the option to check the pitch contour and correct any pitch halving or doubling errors.
+    
+5. **Correct undefined F0**
+
+    Offers the option to manually input the F0 value where automatic pitch detection has failed.
+    NOTE: this assumes that the original point was selected because it had real F0 value.
 
 ## Notes
 1. The pitch contour is interpolated to mitigate against undefined F0 values. If there are (for any reason) still undefined time points, a warning appears in the Info window.
