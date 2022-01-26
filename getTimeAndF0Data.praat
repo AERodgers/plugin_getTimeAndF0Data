@@ -1,6 +1,6 @@
 # Get Time and F0 Data from a Polar Annotated TextGrid and Sound Combo
 # ====================================================================
-# Version 0.1.0
+# Version 0.1.4
 #
 # Written for Praat 6.0.40
 #
@@ -340,64 +340,80 @@ procedure makePitchAccentTable
         Append column: "F0_SD_local"
     endif
     if global_F0_z_scores
-        Insert column:  10, "F0_z_score_global"
+        Insert column:  11, "F0_z_score_global"
     endif
     # Fill table.
     for cur_pa to num_pas
         cur_pa$ = pa_type$[cur_pa]
+
         cur_star_t = pa_star_t[cur_pa]
-        cur_star_t$ = fixed$(cur_star_t, 3)
-        cur_pt_last = pt_t[cur_pa, num_pts[cur_pa]]
-        cur_star_denom = cur_pt_last - cur_star_t
-        cur_F0_mean$ = fixed$(f0_mean[cur_pa], 0)
-        cur_F0_SD$ = fixed$(f0_SD[cur_pa], 3)
+        cur_pa_last_pt = pt_t[cur_pa, num_pts[cur_pa]]
+
         for cur_pt to num_pts[cur_pa]
             Append row
             cur_row += 1
-
-            cur_t$ = fixed$(pt_t[cur_pa, cur_pt], 3)
-            cur_syl_t$ = fixed$(pt_s_tyl_norm[cur_pa, cur_pt], 3)
-            cur_pa_t$ = fixed$(pt_t_pa_norm[cur_pa, cur_pt], 3)
-            cur_f0_Hz$ = fixed$(pt_f0[cur_pa, cur_pt], 0)
-            cur_cur_f0_z_local$ = fixed$(pt_cur_f0_z_local[cur_pa, cur_pt], 3)
-            cur_level = level[cur_pa, cur_pt]
-            t_norm_star = (pt_t[cur_pa, cur_pt] - cur_star_t) / cur_star_denom
-            t_norm_star$ = fixed$(t_norm_star*1000, 3)
             Set string value: cur_row, "file", file_name$
             Set numeric value: cur_row, "accent", cur_pa
             Set string value: cur_row, "type", pa_type$[cur_pa]
             Set numeric value: cur_row, "point", cur_pt
-            Set string value: cur_row, "t_secs", cur_t$
-            Set string value: cur_row, "t_norm_syl", cur_syl_t$
-            Set string value: cur_row, "t_norm_PA", cur_pa_t$
+            Set numeric value: cur_row, "t_secs", pt_t[cur_pa, cur_pt]
+            Set numeric value: cur_row,
+                           ... "t_norm_syl",
+                           ... pt_s_tyl_norm[cur_pa, cur_pt]
+            Set numeric value: cur_row,
+                           ... "t_norm_PA",
+                           ... pt_t_pa_norm[cur_pa, cur_pt]
+            Set numeric value: cur_row,
+                           ... "t_norm_star",
+                           ... (pt_t[cur_pa, cur_pt] - cur_star_t)
+                           ... /
+                           ... (cur_pa_last_pt - cur_star_t)
 
-            Set string value: cur_row, "t_norm_star", t_norm_star$
-
-            Set string value: cur_row, "F0_Hz", cur_f0_Hz$
-            Set string value: cur_row, "F0_z_score_local", cur_cur_f0_z_local$
-            Set numeric value: cur_row, "F0_level", cur_level
+            Set numeric value: cur_row, "F0_Hz", pt_f0[cur_pa, cur_pt]
+            Set numeric value: cur_row,
+                           ... "F0_z_score_local",
+                           ... pt_cur_f0_z_local[cur_pa, cur_pt]
+            Set numeric value: cur_row, "F0_level", level[cur_pa, cur_pt]
 
             if include_reference_values
-                Set string value: cur_row, "star_t", cur_star_t$
-                Set string value: cur_row, "F0_mean_local", cur_F0_mean$
-                Set string value: cur_row, "F0_SD_local", cur_F0_SD$
+                Set numeric value: cur_row, "star_t", cur_star_t
+                Set numeric value: cur_row, "F0_mean_local", f0_mean[cur_pa]
+                Set numeric value: cur_row, "F0_SD_local", f0_SD[cur_pa]
             endif
 
             if global_F0_z_scores
-            cur_cur_f0_z_global$ =
-                ... fixed$(pt_cur_f0_z_global[cur_pa, cur_pt], 3)
-                Set string value: cur_row,
-                ... "F0_z_score_global", cur_cur_f0_z_global$
+                Set numeric value: cur_row, "F0_z_score_global",
+                              ... pt_cur_f0_z_global[cur_pa, cur_pt]
            endif
        endfor
     endfor
     if global_F0_z_scores and include_reference_values
         Append column:  "F0_mean_global"
         Append column:  "F0_SD_global"
-        f0_mean_all$ = fixed$(f0_mean_all, 3)
-        f0_SD_all$ = fixed$(f0_SD_all, 3)
-        Formula: "F0_mean_global", "'f0_mean_all$'"
-        Formula: "F0_SD_global", "'f0_SD_all$'"
+        Formula: "F0_mean_global", "'f0_mean_all'"
+        Formula: "F0_SD_global", "'f0_SD_all'"
+    endif
+
+    if round_table_values
+        # Round obligatory decimal parameters.
+        Formula (column range): "t_secs", "t_norm_star",
+                            ... "fixed$((round(self*1000))/1000, 3)"
+        Formula: "F0_Hz", "round(self)"
+        Formula: "F0_z_score_local", "fixed$((round(self*1000))/1000, 3)"
+
+        # Round optional decimal parameters.
+        if include_reference_values
+            Formula: "star_t", "fixed$((round(self*1000))/1000, 3)"
+            Formula: "F0_mean_local", "round(self)"
+            Formula: "F0_SD_local", "fixed$((round(self*1000))/1000, 1)"
+            if global_F0_z_scores
+                Formula: "F0_mean_global", "round(self)"
+                Formula: "F0_SD_global", "fixed$((round(self*1000))/1000, 1)"
+            endif
+        endif
+        if global_F0_z_scores
+            Formula: "F0_z_score_global", "fixed$((round(self*1000))/1000, 3)"
+        endif
     endif
 endproc
 
@@ -427,6 +443,7 @@ procedure mainUI
             boolean: "Run advanced pitch settings", run_advanced_pitch_settings
             boolean: "Check pitch contour", check_pitch_contour
             boolean: "Correct undefined F0", correct_undefined_F0
+            boolean: "Round table values", round_table_values
         my_choice = endPause: "Exit", "Process", 2, 0
         if my_choice == 1
             exit

@@ -16,6 +16,7 @@ save_format	1
 run_advanced_pitch_settings	0
 check_pitch_contour	0
 correct_undefined_F0	1
+round_table_values	1
 max__number_of_candidates	15
 silence_threshold	0.03
 voicing_threshold	0.45
