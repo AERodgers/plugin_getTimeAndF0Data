@@ -37,7 +37,7 @@ The option to get the time and F0 Data appears under "Polar Data Extraction" hea
 
 3. **Include reference values**
 
-    This will add extra columns to the output table to show the reference values (means, standad deviations, and time of centre of stressed syllable, "\8").
+    This will add extra columns to the output table to show the reference values (means, standad deviations, and time of centre of stressed syllable, "\*").
 
 4. **Run advanced pitch settings**
 
