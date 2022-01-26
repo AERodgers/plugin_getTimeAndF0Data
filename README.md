@@ -59,8 +59,7 @@ The option to get the time and F0 Data appears under "Polar Data Extraction" hea
     This option is set by default. If you unset it, all decimals will have a default precision of 16 decimal places.
 
 ## 5. Output table data
-The script will generate a table containing the information for
-each turning point associated with a pitch accent in the sound file. The table below explains each output parameter.
+The script will generate a table containing the information for each turning point (TP) associated with a pitch accent (PA) in the sound file (FILE). The table below explains each output parameter.
 
 Parameter | Domain | Explanation | Comment
 ----------|--------|-------------|--------
