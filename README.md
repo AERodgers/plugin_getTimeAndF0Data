@@ -19,7 +19,7 @@ The script expects four tiers in your textgrid:
 Tier | Type | Comment
 ----|----|----
 Points | point tier | Turning points as per PoLaR annotation.
-Prosodic structure | point tier | as per PoLaR annotation, marking the centre of lexically stressed syllables with a "*" at least.
+Prosodic structure | point tier | as per PoLaR annotation, marking the centre of lexically stressed syllables with a "\*" at least.
 Levels | point tier | PoLaR Levels annotation tier.
 Syllable | interval tier | Syllable-wise division of the utterance(s).
 Pitch Accent | interval tier | Uses Interval to mark the start and end of each pitch accents, with text headed with "N-" or "PN-" for nuclear and pre-nuclear respectively.
@@ -33,22 +33,26 @@ The option to get the time and F0 Data appears under "Polar Data Extraction" hea
 
 2. **Add F0 z scores based on whole recording**
 
-    This will add an extra row to the output table containing F0 z-scores which the mean and SD of the whole sound file.
+    This will add an extra column to the output table containing F0 z-scores which the mean and SD of the whole sound file.
 
-3. **Run advanced pitch settings**
+3. **Include reference values**
+
+    This will add extra columns to the output table to show the reference values (means, standad deviations, and time of centre of stressed syllable, "\8").
+
+4. **Run advanced pitch settings**
 
     Checking this brings up the advanced pitch settings.
 
-4. **Check pitch contour**
+5. **Check pitch contour**
 
     Offers the option to check the pitch contour and correct any pitch halving or doubling errors.
 
-5. **Correct undefined F0**
+6. **Correct undefined F0**
 
     Offers the option to manually input the F0 value where automatic pitch detection has failed.
     NOTE: this assumes that the original point was selected because it had real F0 value.
 
-6. **Round table values**
+7. **Round table values**
 
     This gives you the option to round the values in the output table.
     All time-related parameters will be rounded to three decimal places while all F0 measurements will be rounded to integers, with their standard deviations rounded to one decimal place.
@@ -69,14 +73,14 @@ t_norm_syl | TP-PA | time normalised to syllable count | digit represents syllab
 t_norm_PA | TP-PA | time-normalised to Pitch Accent duration | 0 = first time point in PA, 1 = last time point
 t_norm_star | TP-PA | time centred around the centre of the lexically stressed syllable ("\*") and normalised to the duration from the star to the last turning point in the PA. | time at "\*" = 0, time at last turning point = 1, any TP before "\*" will have a negative value. Note, this can exceed -1.
 F0_Hz | TP-PA | F0 in Hertz |
-F0_z_score_global | TP-FILE | F0 z-score normalised to global (file-wide) F0 mean and standard deviation | This output parameter is optional.
 F0_z_score_local | TP-PA | F0 z-score normalised to current PA F0 mean and standard deviation  |  
-F0_level | TP-PA | F0 defined in terms of level | This is determined by PoLaR
-star_t | PA | time at centre of lexically stressed syllables (\*) re first TP in PA. |
-F0_mean_local | PA | Mean F0 (Hz) within the current PA |
-F0_SD_local | PA | Standard deviation from the mean of F0 (Hz) within the current PA |
-F0_mean_global | FILE | Mean F0 (Hz) across the whole sound file |
-F0_SD_global | FILE | Standard deviation from the mean of (Hz) across the whole sound file |
+F0_z_score_global | TP-FILE | F0 z-score normalised to global (file-wide) F0 mean and standard deviation | This parameter only appear if "Add F0 z scores based on whole recording" has been selected.
+F0_level | TP-PA | F0 defined in terms of level | This is determined by PoLaR.
+star_t | PA | time at centre of lexically stressed syllables (\*) re first TP in PA. | This parameter only appear if "Include reference values" has been selected.
+F0_mean_local | PA | Mean F0 (Hz) within the current PA | This parameter only appear if "Include reference values" has been selected.
+F0_SD_local | PA | Standard deviation from the mean of F0 (Hz) within the current PA | This parameter only appear if "Include reference values" has been selected.
+F0_mean_global | FILE | Mean F0 (Hz) across the whole sound file | This parameter only appear if "Include reference values" and "Add F0 z scores based on whole recording" have been selected.
+F0_SD_global | FILE | Standard deviation from the mean of (Hz) across the whole sound file | This parameter only appear if "Include reference values" and "Add F0 z scores based on whole recording" have been selected.
 
 ## Notes
 1. The pitch contour is interpolated to mitigate against undefined F0 values. If there are (for any reason) still undefined time points, a warning appears in the Info window.
