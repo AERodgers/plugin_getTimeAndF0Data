@@ -60,7 +60,7 @@ The option to get the time and F0 Data appears under "Polar Data Extraction" hea
 
 ## 5. Output table data
 The script will generate a table containing the information for
-each time point associated with a pitch accent in the sound file. The table below explains each output parameter.
+each turning point associated with a pitch accent in the sound file. The table below explains each output parameter.
 
 Parameter | Domain | Explanation | Comment
 ----------|--------|-------------|--------
