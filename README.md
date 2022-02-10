@@ -2,7 +2,7 @@
 A Praat plugin to create a table with time and F0 data extracted from a Sound object and TextGrid annotated (broadly) using [PoLaR](https://www.polarlabels.com/).
 
 ## 1. Installing the Script
-It requires [Praat version 6.x.x](http://www.fon.hum.uva.nl/praat/).
+It requires [Praat version 6.2.x](http://www.fon.hum.uva.nl/praat/).
 
 To use the plugin, select "Code" followed by "Download ZIP".
 Extract the ZIP file and copy the plugin_getTimeAndF0Data folder to your Praat preferences directory. (See http://www.fon.hum.uva.nl/praat/manual/preferences_directory.html for more information.)
